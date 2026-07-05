@@ -5,6 +5,7 @@ import {
   IconEdit, 
   IconTrash, 
   IconLayoutSidebarLeftCollapse, 
+  IconLayoutSidebarLeftExpand,
   IconPencilPlus,
   IconDots
 } from "@tabler/icons-react";

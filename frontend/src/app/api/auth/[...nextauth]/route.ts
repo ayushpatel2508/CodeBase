@@ -2,13 +2,7 @@ import NextAuth, { NextAuthOptions } from "next-auth";
 import GithubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-// Extend the built-in session type
-declare module "next-auth" {
-  interface Session {
-    accessToken?: string;
-    error?: string;
-  }
-}
+
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace("localhost", "127.0.0.1");
 
