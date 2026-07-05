@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: codebase-rag-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-codebase_rag}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+
+  redis:
+    image: redis:7-alpine
+    container_name: codebase-rag-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+
+  backend:
+    build:
+      context: ./backend
+    container_name: code-chat-backend
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    command: ["gunicorn", "app.main:app", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+    volumes:
+      - ./backend:/app
+      - ${REPO_STORAGE_PATH:-D:\code-chat-repos}:/code-chat-repos
+
+  worker:
+    build:
+      context: ./backend
+    container_name: code-chat-worker
+    depends_on:
+      - redis
+      - postgres
+    env_file:
+      - .env
+    command: ["rq", "worker", "-u", "${REDIS_URL}"]
+    volumes:
+      - ./backend:/app
+      - ${REPO_STORAGE_PATH:-D:\code-chat-repos}:/code-chat-repos
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: code-chat-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  postgres-data:
+  redis-data:

@@ -1,0 +1,36 @@
+
+.DS_Store
+Thumbs.db
+node_modules/
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# FRONTEND 
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.swc/
+frontend/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# BACKEND 
+*.sqlite3
+*.db
+
+.env
+.env.local
+
+
+# Local storage for cloned repos (important so you don't upload 5GB of repos!)
+code-chat-repos/
+context.md
