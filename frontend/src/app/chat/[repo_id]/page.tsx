@@ -1,200 +1,13 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState, useEffect, useRef, useCallback, memo } from "react";
+import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
 import { IconSend, IconRobot, IconUser, IconLink, IconFolder, IconFolderOpen, IconChevronRight, IconChevronDown, IconFile, IconSparkles, IconMessageChatbot, IconMessage, IconLayoutSidebarRight, IconLoader2, IconCopy, IconCheck, IconFileCode, IconRefresh, IconSquare, IconArrowDown, IconTrash } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-
-const CodeBlock = ({ language, code }: { language: string; code: string }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="rounded-xl overflow-hidden my-4 border border-neutral-200 shadow-sm">
-      <div className="bg-[#1e1e1e] border-b border-white/10 text-neutral-400 text-xs px-4 py-2 flex justify-between items-center font-mono">
-        <span>{language}</span>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
-          title="Copy code"
-        >
-          {copied ? <IconCheck size={14} className="text-green-400" /> : <IconCopy size={14} />}
-          <span>{copied ? 'Copied!' : 'Copy'}</span>
-        </button>
-      </div>
-      <SyntaxHighlighter
-        style={vscDarkPlus as any}
-        language={language}
-        PreTag="div"
-        customStyle={{ margin: 0, borderRadius: 0, padding: '1rem', fontSize: '0.875rem' }}
-      >
-        {code}
-      </SyntaxHighlighter>
-    </div>
-  );
-};
-
-const BouncingDots = () => (
-  <div className="flex gap-1 items-center justify-center">
-    <div className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-    <div className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-    <div className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce"></div>
-  </div>
-);
-
-type TreeNode = {
-  name: string;
-  isDir: boolean;
-  children: { [key: string]: TreeNode };
-};
-
-const buildTree = (paths: string[]): TreeNode => {
-  const root: TreeNode = { name: "root", isDir: true, children: {} };
-  for (const path of paths) {
-    const parts = path.split("/").filter(Boolean);
-    const isDir = path.endsWith("/");
-    let current = root;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      if (!current.children[part]) {
-        current.children[part] = {
-          name: part,
-          isDir: i === parts.length - 1 ? isDir : true,
-          children: {}
-        };
-      }
-      current = current.children[part];
-    }
-  }
-  return root;
-};
-
-const TreeRenderer = ({ node, level = 0 }: { node: TreeNode, level?: number }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  if (node.name === "root") {
-    const keys = Object.keys(node.children).sort((a, b) => {
-      const aIsDir = node.children[a].isDir;
-      const bIsDir = node.children[b].isDir;
-      if (aIsDir && !bIsDir) return -1;
-      if (!aIsDir && bIsDir) return 1;
-      return a.localeCompare(b);
-    });
-    return (
-      <div className="w-full pb-4 text-sm font-sans select-none">
-        <div className="flex items-center gap-2 mb-2 px-2 py-1">
-          <IconFolderOpen size={20} className="text-cyan-600 drop-shadow-sm" />
-          <span className="text-cyan-700 font-bold tracking-wide">Repository Root</span>
-        </div>
-        <div className="flex flex-col ml-4 pl-3 border-l border-neutral-200">
-          {keys.map((key) => (
-            <TreeRenderer key={key} node={node.children[key]} level={level + 1} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const keys = Object.keys(node.children).sort((a, b) => {
-    const aIsDir = node.children[a].isDir;
-    const bIsDir = node.children[b].isDir;
-    if (aIsDir && !bIsDir) return -1;
-    if (!aIsDir && bIsDir) return 1;
-    return a.localeCompare(b);
-  });
-
-  return (
-    <div className="flex flex-col">
-      <div 
-        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-200 ${node.isDir ? 'text-neutral-700 font-semibold hover:bg-emerald-50/50 cursor-pointer' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100/70'}`}
-        onClick={() => node.isDir && setIsOpen(!isOpen)}
-      >
-        {node.isDir ? (
-          <>
-            {isOpen ? <IconChevronDown size={14} className="text-neutral-400 shrink-0 transition-transform" /> : <IconChevronRight size={14} className="text-neutral-400 shrink-0 transition-transform" />}
-            {isOpen ? <IconFolderOpen size={18} className="text-emerald-500 shrink-0" /> : <IconFolder size={18} className="text-emerald-500 shrink-0" />}
-          </>
-        ) : (
-          <>
-            <span className="w-3.5 shrink-0" /> {/* Spacer to align files with folders */}
-            {node.name.endsWith('.md') ? (
-              <IconFile size={16} className="text-blue-400 shrink-0" />
-            ) : node.name.match(/\.(ts|tsx|js|jsx)$/) ? (
-              <IconFileCode size={16} className="text-yellow-500 shrink-0" />
-            ) : (
-              <IconFile size={16} className="text-neutral-400 shrink-0" />
-            )}
-          </>
-        )}
-        <span className="truncate">{node.name}</span>
-      </div>
-      
-      {node.isDir && isOpen && keys.length > 0 && (
-        <div className="flex flex-col ml-6 pl-3 border-l border-neutral-200 mt-1 mb-1">
-          {keys.map((key) => (
-            <TreeRenderer key={key} node={node.children[key]} level={level + 1} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const MemoizedMessage = memo(({ msg }: { msg: { role: string, content: string } }) => (
-  <div className={`flex gap-4 w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-    {/* Assistant Layout */}
-    {msg.role === 'assistant' && (
-      <div className="max-w-[70%] bg-white border border-neutral-200 rounded-2xl rounded-tl-sm p-4 shadow-sm flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-neutral-400">
-          <IconRobot size={16} />
-          <span className="text-xs font-bold uppercase tracking-wider">AI Assistant</span>
-        </div>
-        <div className="prose prose-sm max-w-none prose-neutral w-full overflow-hidden cursor-text">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code(props: any) {
-                const { children, className, node, ...rest } = props;
-                const match = /language-(\w+)/.exec(className || '');
-                return match ? (
-                  <CodeBlock language={match[1]} code={String(children).replace(/\n$/, '')} />
-                ) : (
-                  <code className="bg-neutral-100 text-neutral-900 px-1.5 py-0.5 rounded-md text-[0.85em] font-mono border border-neutral-200" {...rest}>
-                    {children}
-                  </code>
-                )
-              }
-            }}
-          >
-            {msg.content}
-          </ReactMarkdown>
-        </div>
-      </div>
-    )}
-
-    {/* User Layout */}
-    {msg.role === 'user' && (
-      <div className="max-w-[70%] bg-neutral-900 text-white rounded-2xl rounded-tr-sm p-4 shadow-md flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-neutral-400 justify-start">
-          <IconUser size={16} />
-          <span className="text-xs font-bold uppercase tracking-wider">You</span>
-        </div>
-        <p className="text-sm text-white leading-relaxed font-medium whitespace-pre-wrap cursor-text">
-          {msg.content}
-        </p>
-      </div>
-    )}
-  </div>
-));
+import { MemoizedMessage, BouncingDots, CodeBlock } from "@/components/chat/chat-message";
+import { TreeRenderer, buildTree } from "@/components/chat/repo-tree-panel";
 
 export default function ChatRepoPage() {
   const params = useParams();
@@ -217,6 +30,8 @@ export default function ChatRepoPage() {
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const isResizing = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const tree = useMemo(() => buildTree(treeFiles), [treeFiles]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -759,35 +574,33 @@ export default function ChatRepoPage() {
       </div>
 
       {/* Right Column: Parsed Tree Toggleable */}
-      {isTreeOpen && (
-        <div 
-          className="relative shrink-0 flex flex-col bg-white border-l border-neutral-200"
-          style={{ width: `${sidebarWidth}px` }}
-        >
-          {/* Drag Handle */}
-          <div
-            className="absolute left-0 top-0 bottom-0 w-1.5 -ml-[1px] cursor-ew-resize hover:bg-blue-400 z-10 transition-colors"
-            onMouseDown={handleMouseDown}
-          />
-          <div className="p-6 overflow-y-auto h-full flex-1">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-1.5 text-neutral-800 text-sm font-bold">
-                <IconFolder size={16} />
-                <span>Parsed Tree</span>
-              </div>
+      <div 
+        className={`relative shrink-0 flex-col bg-white border-l border-neutral-200 ${isTreeOpen ? 'flex' : 'hidden'}`}
+        style={{ width: `${sidebarWidth}px` }}
+      >
+        {/* Drag Handle */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1.5 -ml-[1px] cursor-ew-resize hover:bg-blue-400 z-10 transition-colors"
+          onMouseDown={handleMouseDown}
+        />
+        <div className="p-6 overflow-y-auto h-full flex-1">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-1.5 text-neutral-800 text-sm font-bold">
+              <IconFolder size={16} />
+              <span>Parsed Tree</span>
             </div>
-            {treeFiles.length === 0 ? (
-              <div className="space-y-2 text-sm text-neutral-500 font-mono italic">
-                Loading parsed tree...
-              </div>
-            ) : (
-              <div className="space-y-1.5 overflow-x-hidden pb-4">
-                <TreeRenderer node={buildTree(treeFiles)} />
-              </div>
-            )}
           </div>
+          {treeFiles.length === 0 ? (
+            <div className="space-y-2 text-sm text-neutral-500 font-mono italic">
+              Loading parsed tree...
+            </div>
+          ) : (
+            <div className="space-y-1.5 overflow-x-hidden pb-4">
+              <TreeRenderer node={tree} />
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Clear Chat Confirmation Modal */}
       {isClearModalOpen && (

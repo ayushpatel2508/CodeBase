@@ -44,7 +44,7 @@ export const NewChatModal = ({ isOpen, onClose }: NewChatModalProps) => {
       }
 
       try {
-        const res = await fetch(`http://127.0.0.1:8000/repo/verify?github_url=${encodeURIComponent(repoUrl.trim())}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/repo/verify?github_url=${encodeURIComponent(repoUrl.trim())}`);
         const data = await res.json();
         setIsValidUrl(data.valid);
       } catch (error) {

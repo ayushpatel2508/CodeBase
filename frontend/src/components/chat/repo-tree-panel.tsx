@@ -1,38 +1,109 @@
 "use client";
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { IconFolder, IconFileCode, IconBrandReact, IconBrandTypescript } from "@tabler/icons-react";
 
-export const RepoTreePanel = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+import { useState } from "react";
+import { 
+  IconFolder, 
+  IconFolderOpen, 
+  IconChevronRight, 
+  IconChevronDown, 
+  IconFile, 
+  IconFileCode 
+} from "@tabler/icons-react";
+
+export type TreeNode = {
+  name: string;
+  isDir: boolean;
+  children: { [key: string]: TreeNode };
+};
+
+export const buildTree = (paths: string[]): TreeNode => {
+  const root: TreeNode = { name: "root", isDir: true, children: {} };
+  for (const path of paths) {
+    const parts = path.split("/").filter(Boolean);
+    const isDir = path.endsWith("/");
+    let current = root;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!current.children[part]) {
+        current.children[part] = {
+          name: part,
+          isDir: i === parts.length - 1 ? isDir : true,
+          children: {}
+        };
+      }
+      current = current.children[part];
+    }
+  }
+  return root;
+};
+
+export const TreeRenderer = ({ node, level = 0 }: { node: TreeNode, level?: number }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (node.name === "root") {
+    const keys = Object.keys(node.children).sort((a, b) => {
+      const aIsDir = node.children[a].isDir;
+      const bIsDir = node.children[b].isDir;
+      if (aIsDir && !bIsDir) return -1;
+      if (!aIsDir && bIsDir) return 1;
+      return a.localeCompare(b);
+    });
+    return (
+      <div className="w-full pb-4 text-sm font-sans select-none">
+        <div className="flex items-center gap-2 mb-2 px-2 py-1">
+          <IconFolderOpen size={20} className="text-cyan-600 drop-shadow-sm" />
+          <span className="text-cyan-700 font-bold tracking-wide">Repository Root</span>
+        </div>
+        <div className="flex flex-col ml-4 pl-3 border-l border-neutral-200">
+          {keys.map((key) => (
+            <TreeRenderer key={key} node={node.children[key]} level={level + 1} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const keys = Object.keys(node.children).sort((a, b) => {
+    const aIsDir = node.children[a].isDir;
+    const bIsDir = node.children[b].isDir;
+    if (aIsDir && !bIsDir) return -1;
+    if (!aIsDir && bIsDir) return 1;
+    return a.localeCompare(b);
+  });
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 300, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-          className="h-full border-l border-neutral-200 bg-neutral-50/50 flex flex-col shrink-0 overflow-hidden"
-        >
-          <div className="py-4 border-b border-neutral-200 flex items-center px-4 w-[300px] shrink-0">
-            <h3 className="text-sm font-semibold text-neutral-800">Parsed Tree</h3>
-          </div>
-          <div className="p-4 flex-1 overflow-y-auto w-[300px] font-mono text-sm text-neutral-600 bg-white">
-             <div className="flex items-center gap-2 mb-2"><IconFolder size={16} className="text-blue-500" /> <span>src</span></div>
-             <div className="ml-4 space-y-2">
-                <div className="flex items-center gap-2"><IconBrandReact size={16} className="text-sky-500" /> <span>app.tsx</span></div>
-                <div className="flex items-center gap-2"><IconBrandTypescript size={16} className="text-blue-600" /> <span>layout.tsx</span></div>
-                <div className="flex items-center gap-2 mt-2"><IconFolder size={16} className="text-blue-500" /> <span>components</span></div>
-                <div className="ml-4 space-y-2">
-                    <div className="flex items-center gap-2"><IconBrandReact size={16} className="text-sky-500" /> <span>button.tsx</span></div>
-                    <div className="flex items-center gap-2"><IconBrandReact size={16} className="text-sky-500" /> <span>chat-panel.tsx</span></div>
-                </div>
-             </div>
-             <div className="flex items-center gap-2 mt-4"><IconFileCode size={16} className="text-neutral-400" /> <span>README.md</span></div>
-             <div className="flex items-center gap-2 mt-2"><IconFileCode size={16} className="text-neutral-400" /> <span>package.json</span></div>
-          </div>
-        </motion.div>
+    <div className="flex flex-col">
+      <div 
+        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-200 ${node.isDir ? 'text-neutral-700 font-semibold hover:bg-emerald-50/50 cursor-pointer' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100/70'}`}
+        onClick={() => node.isDir && setIsOpen(!isOpen)}
+      >
+        {node.isDir ? (
+          <>
+            {isOpen ? <IconChevronDown size={14} className="text-neutral-400 shrink-0 transition-transform" /> : <IconChevronRight size={14} className="text-neutral-400 shrink-0 transition-transform" />}
+            {isOpen ? <IconFolderOpen size={18} className="text-emerald-500 shrink-0" /> : <IconFolder size={18} className="text-emerald-500 shrink-0" />}
+          </>
+        ) : (
+          <>
+            <span className="w-3.5 shrink-0" /> {/* Spacer to align files with folders */}
+            {node.name.endsWith('.md') ? (
+              <IconFile size={16} className="text-blue-400 shrink-0" />
+            ) : node.name.match(/\.(ts|tsx|js|jsx)$/) ? (
+              <IconFileCode size={16} className="text-yellow-500 shrink-0" />
+            ) : (
+              <IconFile size={16} className="text-neutral-400 shrink-0" />
+            )}
+          </>
+        )}
+        <span className="truncate">{node.name}</span>
+      </div>
+      
+      {node.isDir && isOpen && keys.length > 0 && (
+        <div className="flex flex-col ml-6 pl-3 border-l border-neutral-200 mt-1 mb-1">
+          {keys.map((key) => (
+            <TreeRenderer key={key} node={node.children[key]} level={level + 1} />
+          ))}
+        </div>
       )}
-    </AnimatePresence>
+    </div>
   );
 };

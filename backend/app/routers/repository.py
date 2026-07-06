@@ -1,3 +1,4 @@
+import os
 import json
 import requests
 import re
@@ -37,7 +38,10 @@ def submit_repository(request: RepoSubmitRequest, db: Session = Depends(get_db),
     repo = match.group(3)
     
     try:
-        response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", timeout=5)
+        headers = {}
+        if os.getenv("GITHUB_TOKEN"):
+            headers["Authorization"] = f"Bearer {os.getenv('GITHUB_TOKEN')}"
+        response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers, timeout=5)
         if response.status_code == 200:
             size_kb = response.json().get("size", 0)
             if size_kb > 50000: # 50MB limit
@@ -230,7 +234,10 @@ def verify_repository(github_url: str = Query(...)):
     
     try:
         # Standard GitHub API call
-        response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", timeout=5)
+        headers = {}
+        if os.getenv("GITHUB_TOKEN"):
+            headers["Authorization"] = f"Bearer {os.getenv('GITHUB_TOKEN')}"
+        response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers, timeout=5)
         if response.status_code == 200:
             data = response.json()
             size_kb = data.get("size", 0)

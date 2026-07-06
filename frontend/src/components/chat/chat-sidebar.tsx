@@ -1,134 +1,279 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
-import { 
-  IconMessageChatbot, 
-  IconEdit, 
-  IconTrash, 
-  IconLayoutSidebarLeftCollapse, 
-  IconLayoutSidebarLeftExpand,
-  IconPencilPlus,
-  IconDots
-} from "@tabler/icons-react";
-import { NewChatModal } from "./new-chat-modal";
 
-interface ChatSidebarProps {
-  isOpen: boolean;
-  onToggle: () => void;
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { 
+  IconPlus, 
+  IconMessage, 
+  IconLogout, 
+  IconDotsVertical, 
+  IconEdit, 
+  IconTrash 
+} from "@tabler/icons-react";
+import ApiKeyModal from "@/components/ApiKeyModal";
+
+interface Repo {
+  id: string;
+  status: string;
+  total_files: number;
+  chat_name?: string;
 }
 
-export const ChatSidebar = ({ isOpen, onToggle }: ChatSidebarProps) => {
-  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+export function ChatSidebar({ session }: { session: any }) {
+  const pathname = usePathname();
+  const [repos, setRepos] = useState<Repo[]>([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [renameModalRepo, setRenameModalRepo] = useState<{ id: string, name: string } | null>(null);
+  const [newChatName, setNewChatName] = useState("");
+  const [deleteModalRepoId, setDeleteModalRepoId] = useState<string | null>(null);
 
-  const dummyChats = [
-    { id: 1, name: "Exploring Next.js framework architecture" },
-    { id: 2, name: "Auth Logic in Python" },
-    { id: 3, name: "Debugging Redis Cache" },
-    { id: 4, name: "Database Schema Design" },
-  ];
-
-  // Close dropdown if clicked outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setActiveMenuId(null);
+  const fetchRepos = () => {
+    if (session?.accessToken) {
+      if (repos.length === 0) {
+        setIsLoadingRepos(true);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/repo/list`, {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.repos) {
+            setRepos(data.repos);
+          }
+        })
+        .catch((err) => console.error("Failed to fetch repos", err))
+        .finally(() => setIsLoadingRepos(false));
+    } else {
+      setIsLoadingRepos(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRepos();
+  }, [session]);
+
+  const executeRename = async () => {
+    if (!renameModalRepo || !newChatName.trim() || newChatName === renameModalRepo.name || !session?.accessToken) {
+      setRenameModalRepo(null);
+      return;
+    }
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/repo/${renameModalRepo.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify({ chat_name: newChatName }),
+      });
+      fetchRepos();
+    } catch (error) {
+      console.error("Failed to rename chat", error);
+    }
+    setRenameModalRepo(null);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteModalRepoId || !session?.accessToken) {
+      setDeleteModalRepoId(null);
+      return;
+    }
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/repo/${deleteModalRepoId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+      fetchRepos();
+      if (pathname.includes(deleteModalRepoId)) {
+        window.location.href = '/chat';
+      }
+    } catch (error) {
+      console.error("Failed to delete chat", error);
+    }
+    setDeleteModalRepoId(null);
+  };
 
   return (
-    <div className="w-full h-full flex flex-col z-20 relative">
-      
-      {/* Top Bar with Toggle and New Chat */}
-      <div className={`p-3 flex ${isOpen ? "flex-col items-start" : "flex-col items-center"} gap-2 shrink-0`}>
-        <button 
-          onClick={onToggle}
-          className="p-2 rounded-lg hover:bg-neutral-200 text-neutral-600 transition-colors cursor-pointer shrink-0"
-          title={isOpen ? "Close sidebar" : "Open sidebar"}
-        >
-          {isOpen ? <IconLayoutSidebarLeftCollapse size={20} /> : <IconLayoutSidebarLeftExpand size={20} />}
-        </button>
-
-        {isOpen && (
-          <button 
+    <>
+      <aside className="w-[260px] bg-white border-r border-black flex flex-col shrink-0">
+        <div className="p-4">
+          <button
             onClick={() => setIsModalOpen(true)}
-            className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-neutral-200 text-neutral-800 transition-colors cursor-pointer font-medium text-sm"
+            className="w-full flex items-center gap-2 px-4 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer"
           >
-            <IconPencilPlus size={18} className="text-neutral-600 shrink-0" />
-            <span className="truncate">New chat</span>
+            <IconPlus size={16} />
+            <span>New Chat</span>
           </button>
-        )}
-      </div>
+        </div>
 
-      {/* Main List */}
-      {isOpen && (
-        <div className="flex-1 overflow-y-auto px-3 pb-4 flex flex-col mt-2">
-          <div className="text-xs font-semibold text-neutral-400 mb-2 px-3">Recents</div>
-          
-          <div className="flex flex-col space-y-0.5" ref={menuRef}>
-            {dummyChats.map((chat) => (
-              <div
-                key={chat.id}
-                className={`group relative w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${
-                  chat.id === 1 ? "bg-neutral-200/70" : "hover:bg-neutral-200/50"
-                }`}
-              >
-                <div className="flex-1 overflow-hidden">
-                  <div className={`text-sm truncate pr-6 ${chat.id === 1 ? "font-semibold text-neutral-900" : "font-medium text-neutral-700 group-hover:text-neutral-900"}`}>
-                    {chat.name}
-                  </div>
-                </div>
-
-                {/* 3 Dots Menu Trigger */}
-                <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center transition-opacity bg-gradient-to-l from-[#e5e5e5] via-[#e5e5e5] to-transparent pl-4 pr-1 ${activeMenuId === chat.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMenuId(activeMenuId === chat.id ? null : chat.id);
-                    }}
-                    className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-300/50 rounded-md transition-colors cursor-pointer"
+        <div className="flex-1 overflow-y-auto px-3 pb-3">
+          <div className="text-xs font-bold text-neutral-400 mb-2 px-3 mt-2 uppercase tracking-wider">Recents</div>
+          {isLoadingRepos ? (
+            <div className="flex flex-col gap-2 px-3 mt-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-10 w-full bg-neutral-200/60 animate-pulse rounded-xl" />
+              ))}
+            </div>
+          ) : repos.length === 0 ? (
+            <div className="text-sm text-neutral-400 px-3 italic">No chats yet</div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {repos.map((repo) => (
+                <div key={repo.id} className={`group relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors ${pathname.includes(repo.id) ? 'bg-neutral-900' : 'hover:bg-neutral-100'}`}>
+                  <Link
+                    href={`/chat/${repo.id}`}
+                    className="flex-1 flex items-center gap-2 min-w-0"
                   >
-                    <IconDots size={18} />
-                  </button>
-                </div>
+                    <IconMessage size={16} className={`shrink-0 ${pathname.includes(repo.id) ? 'text-neutral-300' : 'text-neutral-400'}`} />
+                    <span className={`truncate text-sm font-medium transition-colors ${pathname.includes(repo.id) ? 'text-white' : 'text-neutral-600 group-hover:text-neutral-900'}`}>
+                      {repo.chat_name || repo.id}
+                    </span>
+                  </Link>
 
-                {/* Dropdown Menu */}
-                {activeMenuId === chat.id && (
-                  <div className="absolute right-8 top-8 w-36 bg-white border border-neutral-200 rounded-xl shadow-lg py-1 z-50 flex flex-col overflow-hidden">
-                    <button className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors w-full text-left cursor-pointer">
-                      <IconEdit size={16} className="text-neutral-500" />
-                      Rename
-                    </button>
-                    <button className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full text-left cursor-pointer">
-                      <IconTrash size={16} className="text-red-500" />
-                      Delete
-                    </button>
+                  {/* Dropdown Menu Trigger */}
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center shrink-0">
+                    <div className="relative dropdown-container">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const dropdown = e.currentTarget.nextElementSibling;
+                          if (dropdown) dropdown.classList.toggle('hidden');
+                        }}
+                        className="p-1 text-neutral-400 hover:text-neutral-900 rounded-md hover:bg-neutral-200 transition-colors cursor-pointer"
+                      >
+                        <IconDotsVertical size={16} />
+                      </button>
+
+                      <div className="hidden absolute right-0 top-full mt-1 w-36 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 z-50">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.parentElement?.classList.add('hidden');
+                            setRenameModalRepo({ id: repo.id, name: repo.chat_name || repo.id });
+                            setNewChatName(repo.chat_name || repo.id);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 flex items-center gap-2 cursor-pointer"
+                        >
+                          <IconEdit size={14} /> Rename
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.parentElement?.classList.add('hidden');
+                            setDeleteModalRepoId(repo.id);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                        >
+                          <IconTrash size={14} /> Delete
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* User Profile Area */}
+        <div className="p-3 border-t border-neutral-200">
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-neutral-100 rounded-xl text-sm font-medium text-neutral-600 transition-colors cursor-pointer"
+          >
+            {session.user?.image ? (
+              <img src={session.user.image} alt="Avatar" className="w-7 h-7 rounded-full border border-neutral-200" />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-xs">
+                {session.user?.name?.[0] || "U"}
               </div>
-            ))}
+            )}
+            <span className="truncate flex-1 text-left">{session.user?.name}</span>
+            <IconLogout size={16} className="text-neutral-400" />
+          </button>
+        </div>
+      </aside>
+
+      <ApiKeyModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} session={session} onSuccess={() => fetchRepos()} />
+
+      {/* Rename Modal */}
+      {renameModalRepo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                <IconEdit size={24} />
+              </div>
+              <h2 className="text-xl font-bold text-neutral-900 mb-2">Rename Chat</h2>
+              <input
+                type="text"
+                value={newChatName}
+                onChange={(e) => setNewChatName(e.target.value)}
+                autoFocus
+                className="w-full px-4 py-2 border border-neutral-200 rounded-xl mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 text-sm font-medium"
+                placeholder="Enter new chat name"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') executeRename();
+                  if (e.key === 'Escape') setRenameModalRepo(null);
+                }}
+              />
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setRenameModalRepo(null)}
+                  className="px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeRename}
+                  className="px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm cursor-pointer"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Show tooltip-like New Chat button when collapsed */}
-      {!isOpen && (
-        <div className="px-3 mt-2 flex flex-col items-center">
-           <button 
-             onClick={() => setIsModalOpen(true)}
-             className="p-2 rounded-lg hover:bg-neutral-200 text-neutral-600 transition-colors cursor-pointer" 
-             title="New chat"
-           >
-             <IconPencilPlus size={20} />
-           </button>
+      {/* Delete Modal */}
+      {deleteModalRepoId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
+                <IconTrash size={24} />
+              </div>
+              <h2 className="text-xl font-bold text-neutral-900 mb-2">Delete Chat?</h2>
+              <p className="text-neutral-500 text-sm leading-relaxed mb-6">
+                Are you sure you want to remove this chat from your list? (This won't delete it for other users).
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setDeleteModalRepoId(null)}
+                  className="px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeDelete}
+                  className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors shadow-sm cursor-pointer flex items-center gap-2"
+                >
+                  <IconTrash size={16} />
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-      
-      {/* New Chat Modal */}
-      <NewChatModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-    </div>
+    </>
   );
-};
+}
