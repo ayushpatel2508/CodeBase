@@ -113,12 +113,16 @@ export default function ChatRepoPage() {
     }
   }, [status, session?.accessToken]);
 
+  const hasFetchedTree = useRef(false);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (["queued", "cloning", "processing", "loading", "parsing", "embedding"].includes(repoStatus)) {
       interval = setInterval(() => {
         fetchRepoDetails();
-        if (treeFiles.length === 0) fetchTree();
+        if (!hasFetchedTree.current) {
+          fetchTree();
+        }
       }, 3000);
     }
     return () => {
@@ -189,6 +193,7 @@ export default function ChatRepoPage() {
       if (res.ok) {
         const data = await res.json();
         setTreeFiles(data.tree || []);
+        hasFetchedTree.current = true;
       }
     } catch (err) {
       console.error("Failed to fetch tree", err);
