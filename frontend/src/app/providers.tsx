@@ -19,7 +19,7 @@ function SessionRefresher({ children }: { children: React.ReactNode }) {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider refetchInterval={14 * 60}>
       <SessionRefresher>
         {children}
       </SessionRefresher>

@@ -13,6 +13,8 @@ import {
   IconTrash 
 } from "@tabler/icons-react";
 import ApiKeyModal from "@/components/ApiKeyModal";
+import { useSidebar } from "@/context/sidebar-context";
+import useSWR from "swr";
 
 interface Repo {
   id: string;
@@ -23,45 +25,33 @@ interface Repo {
 
 export function ChatSidebar({ session }: { session: any }) {
   const pathname = usePathname();
-  const [repos, setRepos] = useState<Repo[]>([]);
-  const [isLoadingRepos, setIsLoadingRepos] = useState(true);
+  const { isMobileOpen, setIsMobileOpen } = useSidebar();
+  
+  const fetcher = (url: string) => fetch(url, { headers: { Authorization: `Bearer ${session?.accessToken}` } }).then((res) => res.json()).then(data => data.repos || []);
+  const { data: repos = [], isLoading: isLoadingRepos, mutate: mutateRepos } = useSWR<Repo[]>(
+    session?.accessToken ? `${process.env.NEXT_PUBLIC_API_URL}/repo/list` : null,
+    fetcher
+  );
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [renameModalRepo, setRenameModalRepo] = useState<{ id: string, name: string } | null>(null);
   const [newChatName, setNewChatName] = useState("");
   const [deleteModalRepoId, setDeleteModalRepoId] = useState<string | null>(null);
 
-  const fetchRepos = () => {
-    if (session?.accessToken) {
-      if (repos.length === 0) {
-        setIsLoadingRepos(true);
-      }
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/repo/list`, {
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.repos) {
-            setRepos(data.repos);
-          }
-        })
-        .catch((err) => console.error("Failed to fetch repos", err))
-        .finally(() => setIsLoadingRepos(false));
-    } else {
-      setIsLoadingRepos(false);
-    }
-  };
-
   useEffect(() => {
-    fetchRepos();
-  }, [session]);
+    setIsMobileOpen(false);
+  }, [pathname, setIsMobileOpen]);
 
   const executeRename = async () => {
     if (!renameModalRepo || !newChatName.trim() || newChatName === renameModalRepo.name || !session?.accessToken) {
       setRenameModalRepo(null);
       return;
     }
+    
+    // Optimistic UI update
+    const optimisticData = repos.map(r => r.id === renameModalRepo.id ? { ...r, chat_name: newChatName } : r);
+    mutateRepos(optimisticData, { revalidate: false });
+    
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/repo/${renameModalRepo.id}`, {
         method: "PATCH",
@@ -71,9 +61,10 @@ export function ChatSidebar({ session }: { session: any }) {
         },
         body: JSON.stringify({ chat_name: newChatName }),
       });
-      fetchRepos();
+      mutateRepos(); // Revalidate with server truth
     } catch (error) {
       console.error("Failed to rename chat", error);
+      mutateRepos(); // Revert back to server truth on error
     }
     setRenameModalRepo(null);
   };
@@ -83,6 +74,11 @@ export function ChatSidebar({ session }: { session: any }) {
       setDeleteModalRepoId(null);
       return;
     }
+    
+    // Optimistic UI update
+    const optimisticData = repos.filter(r => r.id !== deleteModalRepoId);
+    mutateRepos(optimisticData, { revalidate: false });
+    
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/repo/${deleteModalRepoId}`, {
         method: "DELETE",
@@ -90,12 +86,13 @@ export function ChatSidebar({ session }: { session: any }) {
           Authorization: `Bearer ${session.accessToken}`,
         },
       });
-      fetchRepos();
+      mutateRepos();
       if (pathname.includes(deleteModalRepoId)) {
         window.location.href = '/chat';
       }
     } catch (error) {
       console.error("Failed to delete chat", error);
+      mutateRepos(); // Revert back
     }
     setDeleteModalRepoId(null);
   };
@@ -201,7 +198,7 @@ export function ChatSidebar({ session }: { session: any }) {
         </div>
       </aside>
 
-      <ApiKeyModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} session={session} onSuccess={() => fetchRepos()} />
+      <ApiKeyModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} session={session} onSuccess={() => mutateRepos()} />
 
       {/* Rename Modal */}
       {renameModalRepo && (

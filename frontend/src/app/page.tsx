@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -264,7 +265,7 @@ export default function HomePage() {
       >
         <Link href="/" className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity">
           <div className={cn("w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 shadow-sm border", isScrolled ? "border-white/20 bg-white" : "border-white/20")}>
-            <img src="/logo.png" alt="Codebase Logo" className="w-full h-full object-cover" />
+            <Image src="/logo.png" alt="Codebase Logo" width={32} height={32} className="w-full h-full object-cover" />
           </div>
           <div className={`transition-all duration-300 ${isScrolled ? "hidden sm:block" : "block"}`}>
             <span className="text-sm leading-none block text-white/50">

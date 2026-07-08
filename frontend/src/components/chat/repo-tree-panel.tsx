@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { 
   IconFolder, 
   IconFolderOpen, 
@@ -37,7 +37,7 @@ export const buildTree = (paths: string[]): TreeNode => {
   return root;
 };
 
-export const TreeRenderer = ({ node, level = 0 }: { node: TreeNode, level?: number }) => {
+export const TreeRenderer = React.memo(({ node, level = 0 }: { node: TreeNode, level?: number }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   if (node.name === "root") {
@@ -106,4 +106,4 @@ export const TreeRenderer = ({ node, level = 0 }: { node: TreeNode, level?: numb
       )}
     </div>
   );
-};
+});

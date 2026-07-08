@@ -48,11 +48,11 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
-    // ─── Credentials (Username/Password) Provider ───
+    // ─── Credentials (Email/Password) Provider ───
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        username: { label: "Username", type: "text" },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              username: credentials?.username,
+              email: credentials?.email,
               password: credentials?.password,
             }),
           });
@@ -129,8 +129,9 @@ export const authOptions: NextAuthOptions = {
       }
 
       // 2. Subsequent check: Return previous token if the access token has not expired yet
-      // Subtract 10 seconds from expiry time to act as a buffer
-      if (Date.now() < (token.accessTokenExpires as number) - 10000) {
+      // Subtract 2 minutes (120000 ms) from expiry time to act as a buffer.
+      // This ensures that when our 14-minute refetchInterval triggers, the token (with 1 min left) is refreshed.
+      if (Date.now() < (token.accessTokenExpires as number) - (2 * 60 * 1000)) {
         return token;
       }
 

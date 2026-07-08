@@ -1,13 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { IconHome, IconMessage, IconBrandGithub } from "@tabler/icons-react";
+import { IconHome, IconMessage, IconBrandGithub, IconMenu2 } from "@tabler/icons-react";
+import { useSidebar } from "@/context/sidebar-context";
 
 export function ChatHeader() {
+  const { toggleMobileSidebar } = useSidebar();
+
   return (
-    <header className="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-6 shrink-0 z-10">
-      <Link href="/" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-        <div className="w-9 h-9 shrink-0 relative rounded-xl overflow-hidden shadow-sm">
-          <Image src="/logo.png" alt="RepoChat Logo" fill className="object-cover" />
+    <header className="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-4 md:px-6 shrink-0 z-10">
+      <div className="flex items-center gap-3">
+        {/* Hamburger Menu (Mobile Only) */}
+        <button 
+          onClick={toggleMobileSidebar}
+          className="md:hidden p-2 -ml-2 text-neutral-600 hover:bg-neutral-100 rounded-lg cursor-pointer transition-colors"
+        >
+          <IconMenu2 size={24} />
+        </button>
+
+        <Link href="/" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+          <div className="w-9 h-9 shrink-0 relative rounded-xl overflow-hidden shadow-sm">
+          <Image src="/logo.png" alt="RepoChat Logo" fill sizes="40px" className="object-cover" />
         </div>
         <div>
           <span className="text-sm font-bold block leading-tight text-neutral-800">
@@ -18,18 +32,19 @@ export function ChatHeader() {
           </span>
         </div>
       </Link>
-      <div className="flex items-center gap-6">
-        <Link href="/" className="flex items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">
+      </div>
+      <div className="flex items-center gap-4 md:gap-6">
+        <Link href="/" className="hidden md:flex items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">
           <IconHome size={18} />
           <span>Home</span>
         </Link>
-        <Link href="/chat" className="flex items-center gap-1.5 text-sm font-medium text-neutral-900 bg-neutral-100 px-3 py-1.5 rounded-full border border-neutral-200 shadow-sm">
+        <Link href="/chat" className="hidden md:flex items-center gap-1.5 text-sm font-medium text-neutral-900 bg-neutral-100 px-3 py-1.5 rounded-full border border-neutral-200 shadow-sm">
           <IconMessage size={18} />
           <span>Chat</span>
         </Link>
         <a href="https://github.com" target="_blank" className="flex items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">
           <IconBrandGithub size={18} />
-          <span>GitHub</span>
+          <span className="hidden md:block">GitHub</span>
         </a>
       </div>
     </header>

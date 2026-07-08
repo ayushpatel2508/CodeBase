@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -42,11 +43,34 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setEmailError("");
+    setPasswordError("");
+    
+    // Client-side validation
+    let hasError = false;
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!isValidEmail) {
+      setEmailError("Please enter a valid email address.");
+      hasError = true;
+    }
+
+    if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters.");
+      hasError = true;
+    } else if (password.length > 24) {
+      setPasswordError("Password must be less than 24 characters.");
+      hasError = true;
+    }
+
+    if (hasError) return;
+
     setLoading(true);
 
     try {
@@ -60,7 +84,12 @@ function LoginForm() {
 
         if (!res.ok) {
           const data = await res.json();
-          setError(data.detail || "Registration failed");
+          // Fix React object child error by stringifying Pydantic 422 errors
+          if (Array.isArray(data.detail)) {
+            setError(data.detail.map((err: any) => err.msg).join(", "));
+          } else {
+            setError(data.detail || "Registration failed");
+          }
           setLoading(false);
           return;
         }
@@ -70,15 +99,15 @@ function LoginForm() {
 
 
       const result = await signIn("credentials", {
-        username,
+        email,
         password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError("Invalid username or password");
+        setError("Invalid email or password");
       } else {
-        router.push(callbackUrl);
+        window.location.href = callbackUrl;
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -96,7 +125,7 @@ function LoginForm() {
         {/* Logo */}
         <Link href="/" className="inline-flex items-center gap-2.5 mb-10 cursor-pointer hover:opacity-80 transition-opacity w-fit">
           <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shadow-sm border border-neutral-200">
-            <img src="/logo.png" alt="Codebase Logo" className="w-full h-full object-cover" />
+            <Image src="/logo.png" alt="Codebase Logo" width={36} height={36} className="w-full h-full object-cover" />
           </div>
           <span className="text-xl font-bold tracking-tight text-neutral-900 drop-shadow-sm">
             Codebase
@@ -104,49 +133,55 @@ function LoginForm() {
         </Link>
 
         {/* Heading */}
-        <h1 className="text-3xl font-bold text-neutral-900 tracking-tight mb-2">
-          {isRegister ? "Create an account" : "Welcome back"}
-        </h1>
-        <p className="text-sm text-neutral-500 mb-8">
-          {isRegister
-            ? "Sign up to start chatting with any codebase"
-            : "Sign in to continue to your workspace"}
-        </p>
+        <div className="w-full max-w-sm">
+          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight mb-2 text-center">
+            {isRegister ? "Create an account" : "Welcome back"}
+          </h1>
+          <p className="text-sm text-neutral-500 mb-8 text-center">
+            {isRegister
+              ? "Sign up to start chatting with any codebase"
+              : "Sign in to continue to your workspace"}
+          </p>
+        </div>
 
         {/* Form Card */}
         <div className="max-w-md w-full">
 
           {/* Credentials Form */}
-          <form onSubmit={handleCredentialsSubmit} className="space-y-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                Username
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all duration-200"
-              />
-            </div>
-
+          <form onSubmit={handleCredentialsSubmit} className="space-y-4 mb-6" noValidate>
             {isRegister && (
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                  Email Address
+                  Username
                 </label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Choose a username"
                   className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all duration-200"
                 />
               </div>
             )}
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailError("");
+                }}
+                placeholder="Enter your email"
+                className={`w-full px-4 py-2.5 rounded-xl border bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${emailError ? 'border-red-500 focus:ring-red-500' : 'border-neutral-200 focus:ring-neutral-900'}`}
+              />
+              {emailError && (
+                <p className="mt-1.5 text-xs font-medium text-red-500">{emailError}</p>
+              )}
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
@@ -155,11 +190,16 @@ function LoginForm() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError("");
+                }}
                 placeholder="Enter your password"
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all duration-200"
+                className={`w-full px-4 py-2.5 rounded-xl border bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${passwordError ? 'border-red-500 focus:ring-red-500' : 'border-neutral-200 focus:ring-neutral-900'}`}
               />
+              {passwordError && (
+                <p className="mt-1.5 text-xs font-medium text-red-500">{passwordError}</p>
+              )}
             </div>
 
             {error && (

@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MemoizedMessage, BouncingDots, CodeBlock } from "@/components/chat/chat-message";
 import { TreeRenderer, buildTree } from "@/components/chat/repo-tree-panel";
+import useSWR from "swr";
 
 export default function ChatRepoPage() {
   const params = useParams();
@@ -24,8 +25,14 @@ export default function ChatRepoPage() {
   const [toolStatus, setToolStatus] = useState("");
   const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-  const [treeFiles, setTreeFiles] = useState<string[]>([]);
   const [repoStatus, setRepoStatus] = useState<string>("loading"); // 'cloning', 'processing', 'ready', 'failed'
+  
+  const fetcher = (url: string) => fetch(url, { headers: { Authorization: `Bearer ${session?.accessToken}` } }).then((res) => res.json()).then(data => data.tree || []);
+  const { data: treeFiles = [], mutate: mutateTree } = useSWR<string[]>(
+    repoStatus === "completed" && session?.accessToken ? `${process.env.NEXT_PUBLIC_API_URL}/chat/tree/${repo_id}` : null,
+    fetcher
+  );
+
   const [isSyncing, setIsSyncing] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const isResizing = useRef(false);
@@ -96,13 +103,17 @@ export default function ChatRepoPage() {
   }, [streamingMessage, isLoading]);
 
   useEffect(() => {
+    if (repoStatus === "completed" && status === "authenticated" && session?.accessToken) {
+      fetchHistory();
+    }
+  }, [repoStatus, status, session?.accessToken]);
+
+  useEffect(() => {
     if (status === "loading") return;
 
     if (status === "authenticated" && session?.accessToken) {
-      fetchHistory();
       fetchRepoDetails();
-      fetchTree();
-    } else {
+    } else if (status === "unauthenticated") {
       setIsFetchingHistory(false);
       setMessages([
         {
@@ -120,9 +131,6 @@ export default function ChatRepoPage() {
     if (["queued", "cloning", "processing", "loading", "parsing", "embedding"].includes(repoStatus)) {
       interval = setInterval(() => {
         fetchRepoDetails();
-        if (!hasFetchedTree.current) {
-          fetchTree();
-        }
       }, 3000);
     }
     return () => {
@@ -166,7 +174,7 @@ export default function ChatRepoPage() {
       });
       if (res.ok) {
         setRepoStatus("queued");
-        setTreeFiles([]);
+        mutateTree([], { revalidate: false });
       } else {
         const data = await res.json().catch(() => ({}));
         alert(data.detail || "Failed to sync repository");
@@ -179,26 +187,7 @@ export default function ChatRepoPage() {
     }
   };
 
-  const fetchTree = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/tree/${repo_id}`, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
-      });
-      if (res.status === 401) {
-        await update();
-        return;
-      }
-      if (res.ok) {
-        const data = await res.json();
-        setTreeFiles(data.tree || []);
-        hasFetchedTree.current = true;
-      }
-    } catch (err) {
-      console.error("Failed to fetch tree", err);
-    }
-  };
+
 
   const fetchHistory = async () => {
     try {
@@ -416,10 +405,20 @@ export default function ChatRepoPage() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#fafafa] relative" ref={messagesContainerRef} onScroll={handleScroll}>
-          {isFetchingHistory ? (
+          {repoStatus !== "completed" ? (
+            <div className="flex flex-col items-center justify-center h-full text-neutral-500 gap-3">
+              <IconLoader2 className="animate-spin text-blue-500" size={32} />
+              <span className="text-base font-semibold capitalize text-neutral-700">
+                {repoStatus === "loading" ? "Loading repository details..." : `Repository is ${repoStatus}...`}
+              </span>
+              <span className="text-sm text-neutral-400 max-w-sm text-center">
+                We are currently analyzing the codebase. Chat will be available once processing completes.
+              </span>
+            </div>
+          ) : isFetchingHistory ? (
             <div className="flex items-center justify-center h-full text-neutral-500">
               <IconLoader2 className="animate-spin mr-2" size={20} />
-              <span className="text-sm font-medium">Loading chat...</span>
+              <span className="text-sm font-medium">Loading chat history...</span>
             </div>
           ) : (
             <>
