@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
-import { IconSend, IconRobot, IconUser, IconLink, IconFolder, IconFolderOpen, IconChevronRight, IconChevronDown, IconFile, IconSparkles, IconMessageChatbot, IconMessage, IconLayoutSidebarRight, IconLoader2, IconCopy, IconCheck, IconFileCode, IconRefresh, IconSquare, IconArrowDown, IconTrash } from "@tabler/icons-react";
+import { IconSend, IconRobot, IconUser, IconLink, IconFolder, IconFolderOpen, IconChevronRight, IconChevronDown, IconFile, IconSparkles, IconMessageChatbot, IconMessage, IconLayoutSidebarRight, IconLoader2, IconCopy, IconCheck, IconFileCode, IconRefresh, IconSquare, IconArrowDown, IconTrash, IconX } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -578,10 +578,17 @@ export default function ChatRepoPage() {
       </div>
 
       {/* Right Column: Parsed Tree Toggleable */}
-      <div 
-        className={`relative shrink-0 flex-col bg-white border-l border-neutral-200 ${isTreeOpen ? 'flex' : 'hidden'}`}
-        style={{ width: `${sidebarWidth}px` }}
-      >
+      {isTreeOpen && (
+        <>
+          {/* Mobile Backdrop */}
+          <div 
+            className="md:hidden absolute inset-0 bg-black/30 backdrop-blur-sm z-30 transition-opacity"
+            onClick={() => setIsTreeOpen(false)}
+          />
+          <div 
+            className="absolute md:relative inset-y-0 right-0 z-40 bg-white border-l border-neutral-200 flex flex-col shadow-2xl md:shadow-none animate-in slide-in-from-right duration-300 md:animate-none"
+            style={{ width: `${sidebarWidth}px`, maxWidth: '85vw' }}
+          >
         {/* Drag Handle */}
         <div
           className="absolute left-0 top-0 bottom-0 w-1.5 -ml-[1px] cursor-ew-resize hover:bg-blue-400 z-10 transition-colors"
@@ -593,6 +600,12 @@ export default function ChatRepoPage() {
               <IconFolder size={16} />
               <span>Parsed Tree</span>
             </div>
+            <button 
+              onClick={() => setIsTreeOpen(false)}
+              className="md:hidden p-1.5 text-neutral-500 hover:bg-neutral-100 rounded-md cursor-pointer"
+            >
+              <IconX size={20} />
+            </button>
           </div>
           {treeFiles.length === 0 ? (
             <div className="space-y-2 text-sm text-neutral-500 font-mono italic">
@@ -605,6 +618,8 @@ export default function ChatRepoPage() {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* Clear Chat Confirmation Modal */}
       {isClearModalOpen && (

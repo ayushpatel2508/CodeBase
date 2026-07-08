@@ -99,7 +99,119 @@ export function ChatSidebar({ session }: { session: any }) {
 
   return (
     <>
-      <aside className="w-[260px] bg-white border-r border-black flex flex-col shrink-0">
+      {/* Mobile Overlay Sidebar */}
+      {isMobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" 
+            onClick={() => setIsMobileOpen(false)}
+          />
+          {/* Drawer */}
+          <aside className="relative w-[280px] max-w-[80vw] bg-white h-full flex flex-col shadow-2xl animate-in slide-in-from-left duration-300 z-50">
+            <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+              >
+                <IconPlus size={16} />
+                <span>New Chat</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <div className="text-xs font-bold text-neutral-400 mb-2 px-3 uppercase tracking-wider">Recents</div>
+              {isLoadingRepos ? (
+                <div className="flex flex-col gap-2 px-3 mt-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-10 w-full bg-neutral-200/60 animate-pulse rounded-xl" />
+                  ))}
+                </div>
+              ) : repos.length === 0 ? (
+                <div className="text-sm text-neutral-400 px-3 italic">No chats yet</div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {repos.map((repo) => (
+                    <div key={repo.id} className={`group relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors ${pathname.includes(repo.id) ? 'bg-neutral-900' : 'hover:bg-neutral-100'}`}>
+                      <Link
+                        href={`/chat/${repo.id}`}
+                        onClick={() => setIsMobileOpen(false)}
+                        className="flex-1 flex items-center gap-2 min-w-0"
+                      >
+                        <IconMessage size={16} className={`shrink-0 ${pathname.includes(repo.id) ? 'text-neutral-300' : 'text-neutral-400'}`} />
+                        <span className={`truncate text-sm font-medium transition-colors ${pathname.includes(repo.id) ? 'text-white' : 'text-neutral-600 group-hover:text-neutral-900'}`}>
+                          {repo.chat_name || repo.id}
+                        </span>
+                      </Link>
+
+                      {/* Dropdown Menu Trigger */}
+                      <div className="opacity-100 transition-opacity flex items-center shrink-0">
+                        <div className="relative dropdown-container">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              const dropdown = e.currentTarget.nextElementSibling;
+                              if (dropdown) dropdown.classList.toggle('hidden');
+                            }}
+                            className="p-1 text-neutral-400 hover:text-neutral-900 rounded-md hover:bg-neutral-200 transition-colors cursor-pointer"
+                          >
+                            <IconDotsVertical size={16} />
+                          </button>
+
+                          <div className="hidden absolute right-0 top-full mt-1 w-36 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 z-50">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.currentTarget.parentElement?.classList.add('hidden');
+                                setRenameModalRepo({ id: repo.id, name: repo.chat_name || repo.id });
+                                setNewChatName(repo.chat_name || repo.id);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 flex items-center gap-2 cursor-pointer"
+                            >
+                              <IconEdit size={14} /> Rename
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.currentTarget.parentElement?.classList.add('hidden');
+                                setDeleteModalRepoId(repo.id);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                            >
+                              <IconTrash size={14} /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* User Profile Area (Mobile) */}
+            <div className="p-3 border-t border-neutral-200 bg-neutral-50 shrink-0">
+              <button
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-neutral-200 rounded-xl text-sm font-medium text-neutral-700 transition-colors cursor-pointer"
+              >
+                {session.user?.image ? (
+                  <img src={session.user.image} alt="Avatar" className="w-8 h-8 rounded-full border border-neutral-200 shadow-sm" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                    {session.user?.name?.[0] || "U"}
+                  </div>
+                )}
+                <span className="truncate flex-1 text-left font-semibold">{session.user?.name}</span>
+                <IconLogout size={18} className="text-neutral-500" />
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop Static Sidebar */}
+      <aside className="hidden md:flex w-[260px] bg-white border-r border-black flex-col shrink-0">
         <div className="p-4">
           <button
             onClick={() => setIsModalOpen(true)}
