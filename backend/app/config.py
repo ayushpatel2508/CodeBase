@@ -59,6 +59,8 @@ def load_settings() -> Settings:
 	openai_api_key = os.getenv("OPENAI_API_KEY")
 	github_token = os.getenv("GITHUB_TOKEN")
 
+	secret_key = os.getenv("SECRET_KEY")
+	environment = os.getenv("APP_ENV", "development")
 	# Fail loudly if critical environment variables are missing
 	missing_vars = []
 	if not database_url:
@@ -67,14 +69,12 @@ def load_settings() -> Settings:
 		missing_vars.append("REDIS_URL")
 	if not openai_api_key:
 		missing_vars.append("OPENAI_API_KEY")
-	if not github_token:
+	if not github_token and environment!="development":
 		missing_vars.append("GITHUB_TOKEN")
 
 	if missing_vars:
 		raise ValueError(f"CRITICAL: Missing required environment variables on startup: {', '.join(missing_vars)}")
 
-	environment = os.getenv("APP_ENV", "development")
-	secret_key = os.getenv("SECRET_KEY")
 	
 	if environment == "production" and not secret_key:
 		raise ValueError("CRITICAL: SECRET_KEY environment variable is missing in production!")

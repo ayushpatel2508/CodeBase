@@ -1,15 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
 class RegisterRequest(BaseModel):
     username: str
-    email: str
-    password: str
+    email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    password: str = Field(..., min_length=8, max_length=24)
 
 
 class LoginRequest(BaseModel):
-    username: str
+    email: str
     password: str
 
 

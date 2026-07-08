@@ -181,7 +181,7 @@ async def stream_repository_query(db: Session, repo_id: str, query: str, user: U
         first_message = first_response.choices[0].message
         
         if first_message.tool_calls:
-            yield {"type": "status", "message": "Calling external tool (search_codebase)..."}
+            yield {"type": "status", "message": "Calling external tool ..."}
             
             messages.append(first_message)
             all_chunks = []

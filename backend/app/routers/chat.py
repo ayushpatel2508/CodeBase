@@ -63,7 +63,7 @@ async def query_codebase(request: Request, body: ChatQueryRequest, db: Session =
             # Write-Through Cache Append
             try:
                 redis_client = get_redis_client()
-                cache_key = f"api:history:user:{current_user.id}:repo:{repo_id}"
+                cache_key = f"api:history:user:{current_user.id}:repo:{body.repo_id}"
                 cached_data = redis_client.get(cache_key)
                 if cached_data:
                     data = json.loads(cached_data)
@@ -129,19 +129,21 @@ def get_chat_history(repo_id: str, db: Session = Depends(get_db), current_user: 
 
 @router.delete("/history/{repo_id}")
 def clear_chat_history(repo_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Verify repository exists
     repo = db.query(Repository).filter(Repository.id == repo_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
         
-    # Delete all chat messages for this user and repo
-    db.query(ChatMessage).filter(
-        ChatMessage.repo_id == repo_id,
-        ChatMessage.user_id == current_user.id
-    ).delete()
-    db.commit()
+    try:
+        db.query(ChatMessage).filter(
+            ChatMessage.repo_id == repo_id,
+            ChatMessage.user_id == current_user.id
+        ).delete()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to clear chat history: {e}")
+        raise HTTPException(status_code=500, detail="Database error occurred during deletion.")
     
-    # Clear Redis chat history cache
     redis_client = get_redis_client()
     redis_client.delete(f"chat_history:user:{current_user.id}:repo:{repo_id}")
     redis_client.delete(f"api:history:user:{current_user.id}:repo:{repo_id}")
@@ -152,8 +154,7 @@ def clear_chat_history(repo_id: str, db: Session = Depends(get_db), current_user
 def get_parsed_tree(repo_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     redis_client = get_redis_client()
     cache_key = f"api:tree:repo:{repo_id}"
-    
-    # Try to fetch from Redis first
+    #cache hit
     try:
         cached_data = redis_client.get(cache_key)
         if cached_data:
@@ -164,14 +165,14 @@ def get_parsed_tree(repo_id: str, db: Session = Depends(get_db), current_user: U
     except Exception as e:
         logger.error(f"Redis get failed: {e}")
 
-    # If not in cache, fetch from PostgreSQL
+    # cache miss
     repo = db.query(Repository).filter(Repository.id == repo_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
         
     tree_json = json.dumps({"tree": repo.parsed_tree or []})
     
-    # Save to Redis for next time (cache for 1 hour)
+    # save to redis
     try:
         redis_client.setex(cache_key, 3600, tree_json)
     except Exception as e:

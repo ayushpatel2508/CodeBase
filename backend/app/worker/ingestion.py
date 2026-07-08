@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from app.database import SessionLocal
 from app.redis_client import get_redis_client
+from app.redis_client import get_redis_client
 from app.models.repository import Repository
 from app.models.user import User
 from app.models.chunk import CodeChunk
@@ -31,6 +32,14 @@ def update_status(db, repo_id: str, status: str, total_files: int = 0, total_chu
         if error_message:
             repo.error_message = error_message
         db.commit()
+
+        if status == "completed":
+            try:
+                redis_client = get_redis_client()
+                redis_client.delete(f"api:tree:repo:{repo_id}")
+                logger.info(f"Invalidated tree cache for repo {repo_id}")
+            except Exception as e:
+                logger.error(f"Failed to invalidate cache for repo {repo_id}: {e}")
 
 def process_job(repo_id: str, github_url: str, user_id: str = None):
     logger.info(f"Processing repo {repo_id}: {github_url}")
