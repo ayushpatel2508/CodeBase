@@ -56,13 +56,15 @@ def search_similar_chunks(db: Session, repo_id: str, query_embedding: list[float
     Uses pgvector's cosine distance operator (<=>) to find the most similar chunks.
     Cosine Similarity = 1 - Cosine Distance.
     """
-    distance_col = CodeChunk.embedding.cosine_distance(query_embedding).label('distance')
+    max_distance = 1.0 - min_similarity
+    distance_expr = CodeChunk.embedding.cosine_distance(query_embedding)
     
     results = (
         db.execute(
-            select(CodeChunk, distance_col)
+            select(CodeChunk, distance_expr.label('distance'))
             .filter(CodeChunk.repo_id == repo_id)
-            .order_by(distance_col)
+            .filter(distance_expr <= max_distance) 
+            .order_by(distance_expr)
             .limit(limit)
         )
         .all()
@@ -72,8 +74,7 @@ def search_similar_chunks(db: Session, repo_id: str, query_embedding: list[float
     for chunk, distance in results:
         similarity = 1.0 - distance
         logger.info(f"  Chunk '{chunk.name}' in {chunk.filepath} => similarity: {similarity:.4f}")
-        if similarity >= min_similarity:
-            chunk.similarity_score = similarity
-            valid_chunks.append(chunk)
+        chunk.similarity_score = similarity
+        valid_chunks.append(chunk)
             
     return valid_chunks
