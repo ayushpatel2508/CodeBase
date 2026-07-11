@@ -4,7 +4,7 @@ An Agentic RAG application that lets developers ask natural-language questions a
 
 ## The Problem
 
-Developers joining a new team spend days reading unfamiliar codebases just to understand how things work. Generic AI chatbots hallucinate because they have zero context about your specific project. CodeChat solves this by cloning, parsing, and embedding your repository so that an AI agent can autonomously search relevant code before answering — eliminating hallucinations and saving hours of onboarding time.
+Understanding a large, complex codebase can be difficult and time-consuming. Generic AI chatbots often hallucinate or provide incorrect answers because they lack context about your specific project. CodeChat solves this by securely cloning, parsing, and embedding your repository, allowing an AI agent to autonomously search your actual source code before answering — providing highly accurate, project-specific responses without hallucinations.
 
 ---
 

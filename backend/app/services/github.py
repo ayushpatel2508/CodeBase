@@ -54,7 +54,7 @@ def get_local_git_diff(repo_path: str, old_hash: str) -> dict[str, list[str]]:
     try:
         subprocess.run(["git", "fetch", "origin", old_hash, "--depth", "1"], cwd=repo_path, capture_output=True, text=True)
     except subprocess.CalledProcessError:
-        pass # Ignore fetch errors, just try diffing (might already have it if not shallow clone)
+        pass 
         
     result = subprocess.run(
         ["git", "diff", "--name-status", old_hash, "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True
@@ -66,7 +66,6 @@ def get_local_git_diff(repo_path: str, old_hash: str) -> dict[str, list[str]]:
             continue
         parts = line.split('\t')
         status = parts[0].upper()
-        # For renames (R), format is R100\told_path\tnew_path
         if status.startswith("R"):
             if len(parts) >= 3:
                 diff_data["deleted"].append(parts[1])
@@ -94,9 +93,9 @@ def get_filtered_files(repo_path: str, specific_files: list[str] = None) -> tupl
     """
     EXCLUDE_DIRS = {".git", "node_modules", "__pycache__", "dist", "build", ".next", "venv", ".venv", "env"}
     INCLUDE_EXTENSIONS = {
-        ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".cpp", ".rs", ".sql", ".prisma", # Languages
-        ".yml", ".yaml", ".json", ".toml", # Configurations & CI/CD
-        ".md", ".sh", ".html", ".css", ".scss" # Docs, scripts, markup
+        ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".cpp", ".rs", ".sql", ".prisma", 
+        ".yml", ".yaml", ".json", ".toml", 
+        ".md", ".sh", ".html", ".css", ".scss" 
     }
     INCLUDE_FILES = {"dockerfile", "makefile"}
     
@@ -116,7 +115,6 @@ def get_filtered_files(repo_path: str, specific_files: list[str] = None) -> tupl
             return False
         return True
 
-    # If specific_files is provided (for incremental sync), we only process those files instead of os.walk
     if specific_files is not None:
         for file_rel_path in specific_files:
             abs_path = os.path.join(repo_path, file_rel_path)
@@ -127,7 +125,6 @@ def get_filtered_files(repo_path: str, specific_files: list[str] = None) -> tupl
             ext = os.path.splitext(file_name)[1].lower()
             if (ext in INCLUDE_EXTENSIONS or file_name.lower() in INCLUDE_FILES) and is_valid_file(file_name, abs_path):
                 filtered_files.append(abs_path)
-        # We don't reconstruct the full tree for incremental sync
         return filtered_files, []
     
     for root, dirs, files in os.walk(repo_path):
@@ -135,14 +132,12 @@ def get_filtered_files(repo_path: str, specific_files: list[str] = None) -> tupl
         if rel_root == ".":
             rel_root = ""
             
-        # Capture excluded directories in the tree structure
         for d in list(dirs):
             if d in EXCLUDE_DIRS:
-                dirs.remove(d)  # Prevent os.walk from traversing into them
+                dirs.remove(d)  
                 tree_path = f"{rel_root}/{d}/" if rel_root else f"{d}/"
                 tree_paths.append(tree_path)
                 
-        # Capture valid files in both arrays
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             abs_path = os.path.join(root, file)
@@ -171,7 +166,6 @@ def cleanup_repo(repo_path: str):
         try:
             shutil.rmtree(repo_path, onerror=remove_readonly)
         except Exception:
-            # Fallback if shutil still fails due to strict Windows locks
             if os.name == 'nt':
                 subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", repo_path], capture_output=True)
             else:

@@ -117,12 +117,10 @@ def chunk_file(filepath: str, repo_path: str = "") -> list[dict]:
         # 2. Extract chunks and prepend the file header
         for chunk_type, nodes in captures.items():
             for node in nodes:
-                # node.start_point is (row, col)
                 start_line = node.start_point[0] + 1
                 end_line = node.end_point[0] + 1
                 node_text = content_bytes[node.start_byte:node.end_byte].decode('utf-8', errors='replace').strip()
                 
-                # Prepend the filepath and file header to the node's code
                 chunk_text = f"File: {filepath}\n\n{file_header}{node_text}"
                 
                 name = f"{chunk_type}-{start_line}-{end_line}"
@@ -137,7 +135,6 @@ def chunk_file(filepath: str, repo_path: str = "") -> list[dict]:
                         "filepath": filepath
                     })
     
-    # If tree-sitter found nothing meaningful (e.g. scripts without functions), fallback
     if not chunks:
         return chunk_sliding_window(content_str, filepath)
         

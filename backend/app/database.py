@@ -8,6 +8,7 @@ import sqlalchemy
 
 from .config import settings
 from .models.base import Base
+from . import models  
 
 
 engine = create_engine(
@@ -29,7 +30,6 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    from . import models  # noqa: F401
 
     # Ensure the pgvector extension is enabled on the database
     with engine.connect() as conn:

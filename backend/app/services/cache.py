@@ -9,7 +9,6 @@ def get_cached_query(repo_id: str, query: str) -> str | None:
     """
     try:
         redis_client = get_redis_client()
-        # Create a unique key for this exact repository and question
         key = f"repo:{repo_id}:query:{query.strip()}"
         cached_answer = redis_client.get(key)
         
@@ -30,7 +29,6 @@ def set_cached_query(repo_id: str, query: str, answer: str, expire_seconds: int 
     try:
         redis_client = get_redis_client()
         key = f"repo:{repo_id}:query:{query.strip()}"
-        # setex saves the string and automatically deletes it after expire_seconds
         redis_client.setex(key, expire_seconds, answer)
     except Exception as e:
         logger.error(f"Redis Cache Error (Set): {e}")

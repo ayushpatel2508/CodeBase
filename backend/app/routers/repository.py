@@ -80,13 +80,13 @@ def submit_repository(request: RepoSubmitRequest, db: Session = Depends(get_db),
                 retry=Retry(max=2, interval=30)
             )
             
-        return RepoSubmitResponse(
+            return RepoSubmitResponse(
                 repo_id=str(existing_repo.id),
                 status="queued",
                 message="Repository was requeued because it failed previously."
             )
 
-    return RepoSubmitResponse(
+        return RepoSubmitResponse(
             repo_id=str(existing_repo.id),
             status=existing_repo.status,
             message="Repository already exists." if existing_repo.status == "completed" else "Repository is already being processed."
@@ -115,7 +115,7 @@ def submit_repository(request: RepoSubmitRequest, db: Session = Depends(get_db),
         retry=Retry(max=2, interval=30)
     )
     
-return RepoSubmitResponse(
+    return RepoSubmitResponse(
         repo_id=str(new_repo.id),
         status="queued",
         message="Repository submitted for processing."
@@ -127,7 +127,7 @@ def get_repository_status(repo_id: str, db: Session = Depends(get_db), current_u
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
         
-return RepoStatusResponse(
+    return RepoStatusResponse(
         id=str(repo.id),
         status=repo.status,
         total_files=repo.total_files,
@@ -138,7 +138,7 @@ return RepoStatusResponse(
 
 @router.get(
     "/list",
-responses={200: {"model": RepoListResponse}}
+    responses={200: {"model": RepoListResponse}}
 )
 def list_user_repositories(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user_repos = db.query(UserRepo).filter(UserRepo.user_id == current_user.id).all()
@@ -147,9 +147,9 @@ def list_user_repositories(db: Session = Depends(get_db), current_user: User = D
     repo_ids = list(user_repo_map.keys())
     repos = db.query(Repository).filter(Repository.id.in_(repo_ids)).all()
     
-response_data = RepoListResponse(
+    response_data = RepoListResponse(
         repos=[
-        RepoStatusResponse(
+            RepoStatusResponse(
                 id=str(r.id),
                 status=r.status,
                 total_files=r.total_files,
@@ -160,7 +160,7 @@ response_data = RepoListResponse(
             ) for r in repos
         ]
     )
-return Response(content=response_data.model_dump_json(), media_type="application/json")
+    return Response(content=response_data.model_dump_json(), media_type="application/json")
 
 @router.patch("/{repo_id}")
 def rename_repository(repo_id: str, request: RepoRenameRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
