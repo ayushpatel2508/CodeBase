@@ -1,8 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class ChatQueryRequest(BaseModel):
     repo_id: str
-    query: str
+    query: str = Field(..., min_length=1, max_length=2000, description="User question about the codebase")
 
 class ChatQueryResponse(BaseModel):
     answer: str

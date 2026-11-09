@@ -13,6 +13,7 @@ from app.schemas.chat import ChatQueryRequest, ChatQueryResponse, ChatHistoryRes
 from app.services.rag import stream_repository_query
 from app.routers.auth import get_current_user
 from app.services.cache import get_redis_client
+from app.services.chat_memory import clear_chat_memory
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -144,8 +145,8 @@ def clear_chat_history(repo_id: str, db: Session = Depends(get_db), current_user
         logger.error(f"Failed to clear chat history: {e}")
         raise HTTPException(status_code=500, detail="Database error occurred during deletion.")
     
+    clear_chat_memory(db, str(current_user.id), repo_id)
     redis_client = get_redis_client()
-    redis_client.delete(f"chat_history:user:{current_user.id}:repo:{repo_id}")
     redis_client.delete(f"api:history:user:{current_user.id}:repo:{repo_id}")
     
     return {"status": "success", "message": "Chat history cleared"}
