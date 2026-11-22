@@ -146,8 +146,11 @@ def clear_chat_history(repo_id: str, db: Session = Depends(get_db), current_user
         raise HTTPException(status_code=500, detail="Database error occurred during deletion.")
     
     clear_chat_memory(db, str(current_user.id), repo_id)
-    redis_client = get_redis_client()
-    redis_client.delete(f"api:history:user:{current_user.id}:repo:{repo_id}")
+    try:
+        redis_client = get_redis_client()
+        redis_client.delete(f"api:history:user:{current_user.id}:repo:{repo_id}")
+    except Exception as e:
+        logger.warning(f"Redis cache delete failed: {e}")
     
     return {"status": "success", "message": "Chat history cleared"}
 

@@ -187,8 +187,11 @@ def delete_repository_link(repo_id: str, db: Session = Depends(get_db), current_
     db.commit()
     
     # Clear Redis chat history cache
-    redis_client = get_redis_client()
-    redis_client.delete(f"chat_history:user:{current_user.id}:repo:{repo_id}")
+    try:
+        redis_client = get_redis_client()
+        redis_client.delete(f"chat_history:user:{current_user.id}:repo:{repo_id}")
+    except Exception as e:
+        logger.warning(f"Redis cache delete failed: {e}")
     
     return {"status": "success"}
 

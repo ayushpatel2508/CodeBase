@@ -29,8 +29,9 @@ def _get_int(name: str, default: int) -> int:
 def _get_list(name: str, default: list[str]) -> list[str]:
 	value = os.getenv(name)
 	if value is None or value.strip() == "":
-		return default
-	return [item.strip() for item in value.split(",") if item.strip()]
+		return [d.rstrip("/") for d in default]
+	# Strip trailing slashes because browser 'Origin' headers NEVER contain trailing slashes
+	return [item.strip().rstrip("/") for item in value.split(",") if item.strip()]
 
 
 @dataclass(slots=True)
@@ -95,8 +96,8 @@ def load_settings() -> Settings:
 			"GITHUB_REDIRECT_URI",
 			"http://localhost:8000/auth/github/callback",
 		),
-		frontend_url=os.getenv("FRONTEND_URL", "http://localhost:3000"),
-		cors_origins=_get_list("CORS_ORIGINS", ["http://localhost:3000"]),
+		frontend_url=os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/"),
+		cors_origins=_get_list("CORS_ORIGINS", ["http://localhost:3000", "http://127.0.0.1:3000"]),
 		vector_dimension=_get_int("VECTOR_DIMENSION", 1536),
 		openai_api_key=openai_api_key,
 	)

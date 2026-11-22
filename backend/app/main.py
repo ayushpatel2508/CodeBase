@@ -19,6 +19,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
+# Add application middlewares first
+app.add_middleware(RateLimitMiddleware)
+
+# Add CORSMiddleware LAST so it becomes the OUTERMOST layer in the Starlette stack.
+# This ensures that ALL responses (including errors and 429s) get CORS headers attached.
 if settings.cors_origins:
     app.add_middleware(
         CORSMiddleware,
@@ -27,8 +32,6 @@ if settings.cors_origins:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-app.add_middleware(RateLimitMiddleware)
 
 app.include_router(auth.router)
 app.include_router(repository.router)

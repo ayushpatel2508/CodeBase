@@ -1,10 +1,13 @@
 import time
 import math
+import logging
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response, JSONResponse
 
 from app.redis_client import get_redis_client
+
+logger = logging.getLogger(__name__)
 
 
 # ─── Rate Limit Configuration ───
@@ -83,6 +86,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # Preflight OPTIONS requests must never be blocked or rate-limited
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # Skip rate limiting for health checks and docs
         path = request.url.path
         if path in ("/", "/health", "/docs", "/openapi.json", "/redoc"):
@@ -91,9 +98,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_ip = _get_client_ip(request)
         max_requests, window_seconds = _get_rate_limit(path)
         
-        is_allowed, remaining, retry_after = _check_rate_limit(
-            client_ip, path, max_requests, window_seconds
-        )
+        try:
+            is_allowed, remaining, retry_after = _check_rate_limit(
+                client_ip, path, max_requests, window_seconds
+            )
+        except Exception as e:
+            # Fail-open: If Redis is down, unreachable, or DNS fails, allow request so core features work
+            logger.warning(f"Rate limiter Redis error: {e}. Allowing request through.")
+            return await call_next(request)
         
         if not is_allowed:
             return JSONResponse(
